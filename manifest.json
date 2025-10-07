@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Instagram Follower Analyzer",
+  "version": "1.0",
+  "description": "Analyze your Instagram followers and following lists locally - no data transmission",
+  "permissions": [
+    "storage",
+    "cookies",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.instagram.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Instagram Follower Analyzer"
+  }
+}
