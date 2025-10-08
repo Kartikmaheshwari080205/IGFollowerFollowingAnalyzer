@@ -249,25 +249,69 @@ class PopupManager {
       }
     });
     
-    const startAnalysisBtn = document.getElementById('startAnalysis');
-    if (startAnalysisBtn) {
-      startAnalysisBtn.addEventListener('click', () => {
+  // Use delegated click handling for buttons so handlers survive re-rendering
+  document.addEventListener('click', async (e) => {
+      // Start Analysis button in no-data state
+      if (e.target.matches('#startAnalysis, #startAnalysis *')) {
+        e.preventDefault();
+        await this.clearUIAndStorage();
+        // start analysis after clearing
         this.startAnalysis();
-      });
-    }
-    
-    const openInstagramBtn = document.getElementById('openInstagram');
-    if (openInstagramBtn) {
-      openInstagramBtn.addEventListener('click', () => {
+        return;
+      }
+
+      // Open Instagram
+      if (e.target.matches('#openInstagram, #openInstagram *')) {
+        e.preventDefault();
         chrome.tabs.create({ url: 'https://www.instagram.com/' });
-      });
-    }
-    
-    const refreshBtn = document.getElementById('refreshAnalysis');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', () => {
+        return;
+      }
+
+      // Refresh Analysis button in analysis results
+      if (e.target.matches('#refreshAnalysis, #refreshAnalysis *')) {
+        e.preventDefault();
+        await this.clearUIAndStorage();
         this.startAnalysis();
+        return;
+      }
+    });
+  }
+
+  async clearUIAndStorage() {
+    // Clear in-memory data and UI immediately
+    this.data = null;
+    const content = document.getElementById('content');
+    if (content) {
+      content.innerHTML = this.renderNoDataState();
+    }
+
+    // Clear any profile pictures shown in the popup DOM immediately
+    try {
+      const imgs = document.querySelectorAll('.profile-pic');
+      imgs.forEach(img => {
+        try {
+          img.src = '';
+        } catch (e) {}
+        img.style.display = 'none';
+        const fallback = img.nextElementSibling;
+        if (fallback && fallback.classList && fallback.classList.contains('avatar-fallback')) {
+          fallback.style.display = 'flex';
+        }
       });
+    } catch (e) {
+      // ignore
+    }
+
+    // Clear stored data in background/storage and wait for confirmation
+    try {
+      await new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'clearAnalysisData' }, (resp) => {
+          // resolve regardless of success to avoid blocking UI indefinitely
+          resolve(resp);
+        });
+      });
+    } catch (e) {
+      // ignore
     }
   }
   
