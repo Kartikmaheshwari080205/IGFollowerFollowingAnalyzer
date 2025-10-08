@@ -99,10 +99,6 @@ instagram-follower-analyzer/
 ├── content.js            # Content script for Instagram pages
 ├── popup.html            # Extension popup UI
 ├── popup.js              # Popup logic
-├── icons/                # Extension icons
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
 └── README.md             # This file
 ```
 
