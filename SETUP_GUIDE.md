@@ -61,7 +61,7 @@ Follow these steps to install and use the Instagram Follower Analyzer Chrome Ext
 ### What Happens During Analysis
 
 **Automatic Process:**
-- Extension uses Instagram's GraphQL API endpoints
+- Extension reads the profile ID from the loaded Instagram page, then uses authenticated friendship endpoints for follower and following lists
 - Fetches your complete followers list
 - Fetches your complete following list
 - Processes the data locally in your browser
@@ -178,7 +178,7 @@ Follow these steps to install and use the Instagram Follower Analyzer Chrome Ext
 ### Data Accuracy
 
 - **Real-time snapshots**: Data reflects your account status when analysis was run
-- **GraphQL API accuracy**: Uses Instagram's native APIs for reliable data
+- **API accuracy**: Uses Instagram's authenticated native APIs for reliable data
 - **Small count differences**: 2-3 account differences are normal (disabled/suspended accounts)
 - **Profile picture availability**: Depends on Instagram's CORS policies and user privacy settings
 - **Best practices**: Run analysis during off-peak hours for optimal performance
@@ -186,7 +186,7 @@ Follow these steps to install and use the Instagram Follower Analyzer Chrome Ext
 ## Privacy & Safety
 
 ### What the Extension Does
--  **Uses Instagram's GraphQL API** (same endpoints Instagram uses)
+-  **Uses Instagram's authenticated friendship API** (the current follower-list surface)
 -  **Stores data locally** in your browser only
 -  **Fetches profile pictures** when Instagram allows
 -  **Provides clickable user links** for easy profile access

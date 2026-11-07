@@ -1,11 +1,11 @@
 # Instagram Follower Analyzer
 
-A Chrome Extension that analyzes your Instagram followers and following lists using Instagram's GraphQL API - entirely locally, no data transmission to external servers, completely client-side.
+A Chrome Extension that analyzes your Instagram followers and following lists using Instagram's authenticated web API - entirely locally, no data transmission to external servers, completely client-side.
 
 ## Features
 
 - **100% Local & Private**: All analysis happens in your browser - no data leaves your device
-- **Fast GraphQL API**: Uses Instagram's native API endpoints for speed and accuracy
+- **Fast API access**: Uses Instagram's native authenticated endpoints for speed and accuracy
 - **Complete User Data**: Shows usernames, full names, and profile pictures
 - **Profile Pictures**: Attempts to fetch actual Instagram profile pictures with smart fallbacks
 - **Popup-Only Interface**: Clean, non-intrusive popup interface - no page modifications
@@ -54,7 +54,7 @@ A Chrome Extension that analyzes your Instagram followers and following lists us
    - Click the **"Start Analysis"** button in the popup
 
 3. **View Results**:
-   - The extension will automatically fetch your follower/following data using Instagram's GraphQL API
+   - The extension will automatically fetch your follower/following data using Instagram's authenticated API
    - Results appear in the popup with interactive sections:
      - **Don't Follow Me Back**: People you follow who don't follow you back
      - **I Don't Follow Back**: Your followers that you don't follow back
@@ -105,11 +105,13 @@ instagram-follower-analyzer/
 ### How It Works
 
 1. **Popup Interface**: Extension works entirely through a popup interface - no page modifications
-2. **GraphQL API**: Uses Instagram's native GraphQL endpoints for data fetching
+2. **Instagram API**: Uses Instagram's authenticated friendship endpoints for data fetching
 3. **Authentication**: Leverages your existing Instagram login session
 4. **Data Processing**: 
-   - Fetches followers using query hash `c76146de99bb02f6415203be841dd25a`
-   - Fetches following using query hash `d04b0a864b4b54837c0d870b0e77e076`
+   - Resolves the current account ID from the profile data already loaded in Instagram
+   - Fetches followers and following through Instagram's authenticated
+     `/api/v1/friendships/{user_id}/followers` and `/following` endpoints
+     with cursor pagination
    - Processes data locally in your browser
 5. **Profile Pictures**: Attempts to fetch real Instagram profile pictures with fallback to generated avatars
 6. **Storage**: Saves results using Chrome's local storage API
@@ -126,6 +128,8 @@ No build process required - this is a pure JavaScript Chrome extension.
 **"Analysis failed" error**:
 - Make sure you're logged into Instagram in the same browser
 - Try refreshing the Instagram page and wait a moment before trying again
+- Instagram may require a refreshed login session if a friendship-list request returns 401 or 403
+- If Instagram reports `useragent mismatch`, reload the extension and refresh the Instagram tab
 - Ensure you're on any Instagram page when clicking "Start Analysis"
 
 **Extension popup shows "Ready to analyze"**:

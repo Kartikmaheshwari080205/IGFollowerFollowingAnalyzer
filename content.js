@@ -1,4 +1,7 @@
 class InstagramAnalyzer {
+  static FRIENDSHIPS_URL = 'https://www.instagram.com/api/v1/friendships';
+  static IG_APP_ID = '936619743392459';
+
   constructor() {
     this.followers = [];
     this.following = [];
@@ -113,100 +116,145 @@ class InstagramAnalyzer {
       throw new Error('Could not determine current username');
     }
     
-    const userQueryRes = await fetch(`https://www.instagram.com/web/search/topsearch/?query=${this.currentUser}`);
-    
-    if (!userQueryRes.ok) {
-      throw new Error('Failed to search for user');
+    this.userId = this.findUserIdInPage();
+    if (!this.userId) {
+      throw new Error(
+        `Could not find the Instagram ID for ${this.currentUser}. Open that profile page, refresh it, and try again.`
+      );
     }
-    
-    const userQueryJson = await userQueryRes.json();
-    const user = userQueryJson.users?.map(u => u.user)?.find(u => u.username === this.currentUser);
-    
-    if (!user) {
-      throw new Error(`User ${this.currentUser} not found in search results`);
+  }
+
+  findUserIdInPage() {
+    const username = this.currentUser.toLowerCase();
+    const visited = new Set();
+    const findInValue = (value) => {
+      if (!value || typeof value !== 'object' || visited.has(value)) {
+        return null;
+      }
+      visited.add(value);
+
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const result = findInValue(item);
+          if (result) return result;
+        }
+        return null;
+      }
+
+      const objectUsername = typeof value.username === 'string'
+        ? value.username.toLowerCase()
+        : '';
+      if (objectUsername === username) {
+        const id = value.pk ?? value.id;
+        if (id !== undefined && id !== null) {
+          return String(id);
+        }
+      }
+
+      for (const item of Object.values(value)) {
+        const result = findInValue(item);
+        if (result) return result;
+      }
+      return null;
+    };
+
+    for (const script of document.scripts) {
+      const text = script.textContent || '';
+      if (!text || !text.toLowerCase().includes(username)) {
+        continue;
+      }
+      try {
+        const result = findInValue(JSON.parse(text));
+        if (result) return result;
+      } catch (error) {
+        const usernamePattern = this.createUserIdPatterns();
+        for (const pattern of usernamePattern) {
+          const match = text.match(pattern);
+          if (match) return match[1];
+        }
+      }
     }
-    
-    this.userId = user.pk;
+
+    const pageText = document.documentElement.innerHTML;
+    for (const pattern of this.createUserIdPatterns()) {
+      const match = pageText.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  }
+
+  createUserIdPatterns() {
+    const username = this.escapeRegExp(this.currentUser);
+    const id = '"(?:pk|id)"\\s*:\\s*"?([0-9]+)"?';
+    return [
+      new RegExp(`"username"\\s*:\\s*"${username}"[\\s\\S]{0,500}?${id}`, 'i'),
+      new RegExp(`${id}[\\s\\S]{0,500}?"username"\\s*:\\s*"${username}"`, 'i')
+    ];
+  }
+
+  escapeRegExp(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   async fetchFollowers() {
-    let after = null;
-    let has_next = true;
-
-    while (has_next) {
-      const response = await fetch(
-        `https://www.instagram.com/graphql/query/?query_hash=c76146de99bb02f6415203be841dd25a&variables=` +
-          encodeURIComponent(
-            JSON.stringify({
-              id: this.userId,
-              include_reel: true,
-              fetch_mutual: true,
-              first: 50,
-              after: after,
-            })
-          )
-      );
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch followers: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.data?.user?.edge_followed_by) {
-        has_next = data.data.user.edge_followed_by.page_info.has_next_page;
-        after = data.data.user.edge_followed_by.page_info.end_cursor;
-        
-        const newFollowers = data.data.user.edge_followed_by.edges.map(({ node }) => ({
-          username: node.username,
-          full_name: node.full_name
-        }));
-        
-        this.followers = this.followers.concat(newFollowers);
-      } else {
-        throw new Error('Invalid response format for followers');
-      }
-    }
+    this.followers = await this.fetchFriendshipList('followers');
   }
 
   async fetchFollowing() {
-    let after = null;
-    let has_next = true;
+    this.following = await this.fetchFriendshipList('following');
+  }
 
-    while (has_next) {
+  async fetchFriendshipList(relation) {
+    const users = [];
+    let maxId = null;
+
+    while (true) {
+      const params = new URLSearchParams({
+        count: '50'
+      });
+      if (maxId) {
+        params.set('max_id', maxId);
+      }
+
       const response = await fetch(
-        `https://www.instagram.com/graphql/query/?query_hash=d04b0a864b4b54837c0d870b0e77e076&variables=` +
-          encodeURIComponent(
-            JSON.stringify({
-              id: this.userId,
-              include_reel: true,
-              fetch_mutual: true,
-              first: 50,
-              after: after,
-            })
-          )
+        `${InstagramAnalyzer.FRIENDSHIPS_URL}/${this.userId}/${relation}/?${params}`,
+        {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'X-IG-App-ID': InstagramAnalyzer.IG_APP_ID,
+          'X-ASBD-ID': '129477',
+          'X-IG-WWW-Claim': '0',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': this.getCsrfToken()
+        },
+        }
       );
-      
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch following: ${response.status}`);
+        throw new Error(`Failed to fetch ${relation}: ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
-      if (data.data?.user?.edge_follow) {
-        has_next = data.data.user.edge_follow.page_info.has_next_page;
-        after = data.data.user.edge_follow.page_info.end_cursor;
-        
-        const newFollowing = data.data.user.edge_follow.edges.map(({ node }) => ({
-          username: node.username,
-          full_name: node.full_name
-        }));
-        
-        this.following = this.following.concat(newFollowing);
-      } else {
-        throw new Error('Invalid response format for following');
+      if (!Array.isArray(data.users)) {
+        throw new Error(`Invalid response format for ${relation}`);
       }
+
+      users.push(...data.users.map(user => ({
+        username: user.username,
+        full_name: user.full_name
+      })));
+
+      const nextMaxId = data.next_max_id;
+      if (!nextMaxId || nextMaxId === maxId) {
+        return users;
+      }
+      maxId = nextMaxId;
     }
+  }
+
+  getCsrfToken() {
+    return document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/)?.[1] || '';
   }
 
   calculateDifferences() {
@@ -241,15 +289,6 @@ class InstagramAnalyzer {
         const profileImg = document.querySelector('img[alt*="profile picture"], header img, article img[alt]');
         if (profileImg && profileImg.src) {
           return profileImg.src;
-        }
-      }
-
-      const response = await fetch(`https://www.instagram.com/web/search/topsearch/?query=${username}`);
-      if (response.ok) {
-        const data = await response.json();
-        const user = data.users?.find(u => u.user.username === username);
-        if (user && user.user.profile_pic_url) {
-          return user.user.profile_pic_url;
         }
       }
 

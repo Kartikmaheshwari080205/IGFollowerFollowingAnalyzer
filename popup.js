@@ -180,22 +180,8 @@ class PopupManager {
 
   async fetchInstagramProfilePic(username) {
     try {
-      const apiUrl = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${username}`;
-      const response = await fetch(apiUrl, {
-        headers: {
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        return data.data?.user?.profile_pic_url;
-      }
-    } catch (error) {}
-
-    try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab.url.includes('instagram.com')) {
+      if (tab?.id && tab.url?.includes('instagram.com')) {
         const result = await chrome.tabs.sendMessage(tab.id, { 
           action: 'getProfilePic', 
           username: username 
@@ -204,7 +190,9 @@ class PopupManager {
           return result.profilePicUrl;
         }
       }
-    } catch (error) {}
+    } catch (error) {
+      // The generated avatar is used when Instagram blocks profile images.
+    }
 
     return null;
   }
